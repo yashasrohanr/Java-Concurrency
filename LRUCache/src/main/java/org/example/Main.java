@@ -197,6 +197,148 @@ class SynchronizedLRUCache<K, V> implements LRUCache<K, V> {
     }
 }
 
+
+// ============ IMPLEMENTATION 1.5: SYNCHRONIZED WITH TTL============
+/**
+ * Thread-safe LRU Cache with TTL (Time To Live) using synchronized
+ * Evicts both least recently used and expired entries
+ */
+class SynchronizedLRUCacheWithTTL<K, V> implements LRUCache<K, V> {
+
+    // Doubly-linked list node with TTL info
+    private static class Node<K, V> {
+        K key;
+        V value;
+        long expiryTime; // epoch millis
+        Node<K, V> prev, next;
+
+        Node(K key, V value, long expiryTime) {
+            this.key = key;
+            this.value = value;
+            this.expiryTime = expiryTime;
+        }
+    }
+
+    private final int capacity;
+    private final long ttlMillis;
+    private final Map<K, Node<K, V>> cache;
+    private final Node<K, V> head, tail;
+
+    public SynchronizedLRUCacheWithTTL(int capacity, long ttlMillis) {
+        if (capacity <= 0) throw new IllegalArgumentException("Capacity must be positive");
+        if (ttlMillis <= 0) throw new IllegalArgumentException("TTL must be positive");
+
+        this.capacity = capacity;
+        this.ttlMillis = ttlMillis;
+        this.cache = new HashMap<>();
+
+        // Dummy sentinels
+        this.head = new Node<>(null, null, 0);
+        this.tail = new Node<>(null, null, 0);
+        head.next = tail;
+        tail.prev = head;
+    }
+
+    @Override
+    public synchronized V get(K key) {
+        Node<K, V> node = cache.get(key);
+        if (node == null) return null;
+
+        // Check TTL
+        if (isExpired(node)) {
+            removeNode(node);
+            cache.remove(key);
+            return null;
+        }
+
+        moveToHead(node);
+        return node.value;
+    }
+
+    @Override
+    public synchronized void put(K key, V value) {
+        Node<K, V> node = cache.get(key);
+        long expiry = System.currentTimeMillis() + ttlMillis;
+
+        if (node != null) {
+            // Update existing value + expiry
+            node.value = value;
+            node.expiryTime = expiry;
+            moveToHead(node);
+        } else {
+            // Insert new node
+            Node<K, V> newNode = new Node<>(key, value, expiry);
+            cache.put(key, newNode);
+            addToHead(newNode);
+
+            if (cache.size() > capacity) {
+                Node<K, V> lru = removeTail();
+                cache.remove(lru.key);
+            }
+        }
+    }
+
+    @Override
+    public synchronized V remove(K key) {
+        Node<K, V> node = cache.remove(key);
+        if (node == null) return null;
+        removeNode(node);
+        return node.value;
+    }
+
+    @Override
+    public synchronized int size() {
+        cleanupExpired();
+        return cache.size();
+    }
+
+    @Override
+    public int capacity() {
+        return capacity;
+    }
+
+    // ===== Helper Methods =====
+
+    private boolean isExpired(Node<K, V> node) {
+        return System.currentTimeMillis() > node.expiryTime;
+    }
+
+    // Clean up expired entries lazily
+    private void cleanupExpired() {
+        Iterator<Map.Entry<K, Node<K, V>>> it = cache.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<K, Node<K, V>> e = it.next();
+            if (isExpired(e.getValue())) {
+                removeNode(e.getValue());
+                it.remove();
+            }
+        }
+    }
+
+    private void addToHead(Node<K, V> node) {
+        node.next = head.next;
+        node.prev = head;
+        head.next.prev = node;
+        head.next = node;
+    }
+
+    private void removeNode(Node<K, V> node) {
+        node.prev.next = node.next;
+        node.next.prev = node.prev;
+    }
+
+    private void moveToHead(Node<K, V> node) {
+        removeNode(node);
+        addToHead(node);
+    }
+
+    private Node<K, V> removeTail() {
+        Node<K, V> lru = tail.prev;
+        removeNode(lru);
+        return lru;
+    }
+}
+
 // ============ IMPLEMENTATION 2: READ-WRITE LOCK ============
 /**
  * Uses ReentrantReadWriteLock for better read concurrency.
