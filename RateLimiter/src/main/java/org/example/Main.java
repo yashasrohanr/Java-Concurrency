@@ -114,6 +114,7 @@ class TokenBucketRateLimiter implements RateLimiter {
 
     public void shutDown() {
         scheduler.shutdown();
+        userBuckets.clear();
     }
 }
 
@@ -461,6 +462,70 @@ class SlidingWindowCounterRateLimiter implements RateLimiter {
         }
     }
 }
+
+class RohanRateLimiter{
+    // token bucket
+    private static class Bucket {
+        static int capacity;
+        // per second refill rate
+        static int windowSize;
+        static long lastRefillTime;
+        private static Semaphore permits;
+        public Bucket(int capacity, int windowSize) {
+            this.windowSize = windowSize;
+            this.capacity = capacity;
+            this.permits = new Semaphore(capacity);
+            lastRefillTime = System.currentTimeMillis();
+        }
+
+        public boolean allowRequest() {
+            return permits.tryAcquire();
+        }
+
+        public void refill() {
+            long now = System.currentTimeMillis();
+            long timeElapsed = now - lastRefillTime;
+            int  tokensToFill = Math.min(capacity, (int) ((timeElapsed * windowSize) / 1000));
+
+            if (tokensToFill > 0) {
+                permits.release(tokensToFill);
+                lastRefillTime = now;
+            }
+        }
+
+    }
+    private final int capacity;
+    private final int windowSize;
+    private final Bucket globalBucket;
+    private final ConcurrentHashMap<String, Bucket> userBuckets;
+    private final ScheduledExecutorService scheduledService;
+
+    public RohanRateLimiter(int windowSize, int capacity) {
+        this.scheduledService = Executors.newSingleThreadScheduledExecutor();
+        this.globalBucket = new Bucket(capacity, windowSize);
+        this.windowSize = windowSize;
+        this.capacity = capacity;
+        this.userBuckets = new ConcurrentHashMap<>();
+
+        scheduledService.scheduleAtFixedRate(() -> {
+            globalBucket.refill();
+            userBuckets.values().forEach(Bucket::refill);
+        }, windowSize, windowSize, TimeUnit.MILLISECONDS);
+    }
+
+    public boolean allowRequest(String userId) {
+        Bucket bucket = (userId == null) ? globalBucket : userBuckets.computeIfAbsent(userId, user -> new Bucket(capacity, windowSize));
+
+        return bucket.allowRequest();
+    }
+
+    public void shutDown() {
+        scheduledService.shutdown();
+        userBuckets.clear();
+    }
+}
+
+
 
 
 public class Main {

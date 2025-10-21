@@ -2,6 +2,9 @@ package org.example;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -223,7 +226,7 @@ class SynchronizedLRUCacheWithTTL<K, V> implements LRUCache<K, V> {
     private final long ttlMillis;
     private final Map<K, Node<K, V>> cache;
     private final Node<K, V> head, tail;
-
+    private final ScheduledExecutorService service;
     public SynchronizedLRUCacheWithTTL(int capacity, long ttlMillis) {
         if (capacity <= 0) throw new IllegalArgumentException("Capacity must be positive");
         if (ttlMillis <= 0) throw new IllegalArgumentException("TTL must be positive");
@@ -237,6 +240,10 @@ class SynchronizedLRUCacheWithTTL<K, V> implements LRUCache<K, V> {
         this.tail = new Node<>(null, null, 0);
         head.next = tail;
         tail.prev = head;
+        service = Executors.newSingleThreadScheduledExecutor();
+        service.scheduleAtFixedRate(() -> {
+            cleanupExpired();
+        }, 5000L, 1000L, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     @Override
