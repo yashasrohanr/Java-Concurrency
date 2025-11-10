@@ -341,7 +341,7 @@ public class Main {
 
         // Buffer capacity
         final int CAPACITY = 5;
-        final int ITEMS = 10;
+        final int ITEMS = 1000;
 
         // Choose implementation to test (change this to test different implementations)
         BoundedBuffer<Integer> buffer = new Bounded_Buffer_Semaphores<>(CAPACITY);
@@ -354,18 +354,21 @@ public class Main {
         Thread producer2 = new Thread(new Producer(buffer, ITEMS), "Producer-2");
         Thread consumer1 = new Thread(new Consumer(buffer, ITEMS), "Consumer-1");
         Thread consumer2 = new Thread(new Consumer(buffer, ITEMS), "Consumer-2");
+        Thread consumer3 = new Thread(new Consumer(buffer, ITEMS), "Consumer-3");
 
         // Start all threads
         producer1.start();
         producer2.start();
         consumer1.start();
         consumer2.start();
+        consumer3.start();
 
         // Wait for completion
         producer1.join();
         producer2.join();
         consumer1.join();
         consumer2.join();
+        consumer3.join();
 
         System.out.println("\n=== All operations completed ===");
         System.out.println("Final state - Empty: " + buffer.isEmpty() + ", Size: " + buffer.size());

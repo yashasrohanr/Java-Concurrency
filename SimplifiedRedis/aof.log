@@ -1,0 +1,56 @@
+SET a 1
+SET b 2
+EXPIRE a 2
+SET k1 v1
+SET k2 v2
+SET k3 v3
+SET k4 v4
+DEL b
+SET k5 v5
+DEL k1
+SET k6 v6
+PUBLISH news hello subscribers!
+DEL k3
+SET tx1 100
+DEL k4
+SET tx2 200
+DEL k5
+SET con0 val0
+DEL k6
+SET con4 val4
+DEL k2
+SET con5 val5
+DEL tx1
+DEL tx2
+SET con1 val1
+SET con6 val6
+DEL con0
+SET con7 val7
+DEL con4
+SET con8 val8
+DEL con5
+SET con9 val9
+DEL con1
+SET con0 val10
+DEL con6
+SET con1 val11
+DEL con7
+DEL con8
+SET con2 val12
+SET con3 val13
+DEL con9
+DEL con0
+SET con4 val14
+SET con5 val15
+DEL con1
+DEL con2
+SET con6 val16
+SET con7 val17
+DEL con3
+SET con8 val18
+DEL con4
+SET con9 val19
+DEL con5
+SET con2 val2
+DEL con6
+SET con3 val3
