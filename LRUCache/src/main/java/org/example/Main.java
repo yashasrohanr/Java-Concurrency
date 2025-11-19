@@ -241,9 +241,7 @@ class SynchronizedLRUCacheWithTTL<K, V> implements LRUCache<K, V> {
         head.next = tail;
         tail.prev = head;
         service = Executors.newSingleThreadScheduledExecutor();
-        service.scheduleAtFixedRate(() -> {
-            cleanupExpired();
-        }, 5000L, 1000L, java.util.concurrent.TimeUnit.MILLISECONDS);
+        service.scheduleAtFixedRate(this::cleanupExpired, 5000L, 1000L, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     @Override

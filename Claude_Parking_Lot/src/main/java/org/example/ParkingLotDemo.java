@@ -1,613 +1,303 @@
 package org.example;
 
-// ==================== ENUMS ====================
-
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
-enum VehicleType {
-    MOTORCYCLE(1),
-    CAR(2),
-    BUS(4);
+// --- Enums ---
+enum VehicleType { BIKE, CAR, TRUCK }
+enum SpotType { MOTORCYCLE, COMPACT, LARGE, EV }
+enum SpotStatus { AVAILABLE, OCCUPIED }
+enum PaymentMethod { CASH, CARD, UPI }
 
-    private final int spotsRequired;
-
-    VehicleType(int spotsRequired) {
-        this.spotsRequired = spotsRequired;
-    }
-
-    public int getSpotsRequired() {
-        return spotsRequired;
-    }
-}
-
-enum SpotType {
-    MOTORCYCLE,
-    COMPACT,
-    LARGE,
-    HANDICAPPED,
-    EV_CHARGING
-}
-
-enum SpotStatus {
-    AVAILABLE,
-    OCCUPIED,
-    RESERVED,
-    OUT_OF_SERVICE
-}
-
-enum PaymentStatus {
-    PENDING,
-    COMPLETED,
-    FAILED,
-    REFUNDED
-}
-
-// ==================== VEHICLE CLASSES ====================
-
+// --- Vehicles ---
 abstract class Vehicle {
-    protected String licensePlate;
-    protected VehicleType type;
-
-    public Vehicle(String licensePlate, VehicleType type) {
-        this.licensePlate = licensePlate;
-        this.type = type;
-    }
-
-    public String getLicensePlate() {
-        return licensePlate;
-    }
-
-    public VehicleType getType() {
-        return type;
-    }
-
-    public int getSpotsRequired() {
-        return type.getSpotsRequired();
-    }
+    private final String plate;
+    private final VehicleType type;
+    public Vehicle(String plate, VehicleType type) { this.plate = plate; this.type = type; }
+    public String getPlate() { return plate; }
+    public VehicleType getType() { return type; }
 }
 
-class Motorcycle extends Vehicle {
-    public Motorcycle(String licensePlate) {
-        super(licensePlate, VehicleType.MOTORCYCLE);
-    }
-}
+class Bike extends Vehicle { public Bike(String p) { super(p, VehicleType.BIKE); } }
+class Car extends Vehicle { public Car(String p) { super(p, VehicleType.CAR); } }
+class Truck extends Vehicle { public Truck(String p) { super(p, VehicleType.TRUCK); } }
 
-class Car extends Vehicle {
-    public Car(String licensePlate) {
-        super(licensePlate, VehicleType.CAR);
-    }
-}
+// --- Parking Spot ---
+class ParkingSpot {
+    private final String id;
+    private final SpotType type;
+    private volatile SpotStatus status;
+    private final ReentrantLock lock = new ReentrantLock();
+    private Vehicle occupant;
 
-class Bus extends Vehicle {
-    public Bus(String licensePlate) {
-        super(licensePlate, VehicleType.BUS);
-    }
-}
-
-class ElectricVehicle extends Car {
-    private int batteryLevel;
-
-    public ElectricVehicle(String licensePlate, int batteryLevel) {
-        super(licensePlate);
-        this.batteryLevel = batteryLevel;
+    public ParkingSpot(String id, SpotType type) {
+        this.id = id; this.type = type; this.status = SpotStatus.AVAILABLE;
     }
 
-    public int getBatteryLevel() {
-        return batteryLevel;
-    }
-
-    public boolean needsCharging() {
-        return batteryLevel < 50;
-    }
-}
-
-// ==================== PARKING SPOT ====================
-
-abstract class ParkingSpot {
-    protected String spotId;
-    protected SpotType type;
-    protected SpotStatus status;
-    protected Vehicle currentVehicle;
-    protected int floor;
-
-    public ParkingSpot(String spotId, SpotType type, int floor) {
-        this.spotId = spotId;
-        this.type = type;
-        this.status = SpotStatus.AVAILABLE;
-        this.floor = floor;
-    }
-
-    public synchronized boolean isAvailable() {
-        return status == SpotStatus.AVAILABLE;
-    }
-
-    public synchronized boolean assignVehicle(Vehicle vehicle) {
-        if (!canFitVehicle(vehicle)) {
-            return false;
-        }
-        this.currentVehicle = vehicle;
-        this.status = SpotStatus.OCCUPIED;
-        return true;
-    }
-
-    public synchronized void removeVehicle() {
-        this.currentVehicle = null;
-        this.status = SpotStatus.AVAILABLE;
-    }
-
-    public synchronized void reserve() {
-        if (status == SpotStatus.AVAILABLE) {
-            status = SpotStatus.RESERVED;
-        }
-    }
-
-    public abstract boolean canFitVehicle(Vehicle vehicle);
-
-    // Getters
-    public String getSpotId() { return spotId; }
-    public SpotType getType() { return type; }
-    public SpotStatus getStatus() { return status; }
-    public Vehicle getCurrentVehicle() { return currentVehicle; }
-    public int getFloor() { return floor; }
-}
-
-class MotorcycleSpot extends ParkingSpot {
-    public MotorcycleSpot(String spotId, int floor) {
-        super(spotId, SpotType.MOTORCYCLE, floor);
-    }
-
-    @Override
-    public boolean canFitVehicle(Vehicle vehicle) {
-        return vehicle.getType() == VehicleType.MOTORCYCLE;
-    }
-}
-
-class CompactSpot extends ParkingSpot {
-    public CompactSpot(String spotId, int floor) {
-        super(spotId, SpotType.COMPACT, floor);
-    }
-
-    @Override
-    public boolean canFitVehicle(Vehicle vehicle) {
-        return vehicle.getType() == VehicleType.MOTORCYCLE ||
-                vehicle.getType() == VehicleType.CAR;
-    }
-}
-
-class LargeSpot extends ParkingSpot {
-    public LargeSpot(String spotId, int floor) {
-        super(spotId, SpotType.LARGE, floor);
-    }
-
-    @Override
-    public boolean canFitVehicle(Vehicle vehicle) {
-        return true; // Can fit any vehicle
-    }
-}
-
-class HandicappedSpot extends ParkingSpot {
-    public HandicappedSpot(String spotId, int floor) {
-        super(spotId, SpotType.HANDICAPPED, floor);
-    }
-
-    @Override
-    public boolean canFitVehicle(Vehicle vehicle) {
-        return vehicle.getType() == VehicleType.CAR;
-    }
-}
-
-class EVChargingSpot extends ParkingSpot {
-    private boolean isCharging;
-
-    public EVChargingSpot(String spotId, int floor) {
-        super(spotId, SpotType.EV_CHARGING, floor);
-        this.isCharging = false;
-    }
-
-    @Override
-    public boolean canFitVehicle(Vehicle vehicle) {
-        return vehicle instanceof ElectricVehicle;
-    }
-
-    public void startCharging() {
-        this.isCharging = true;
-    }
-
-    public void stopCharging() {
-        this.isCharging = false;
-    }
-}
-
-// ==================== TICKET ====================
-
-class Ticket {
-    private final String ticketId;
-    private final Vehicle vehicle;
-    private final List<ParkingSpot> assignedSpots;
-    private final long entryTime;
-    private long exitTime;
-    private double amount;
-    private PaymentStatus paymentStatus;
-
-    public Ticket(String ticketId, Vehicle vehicle, List<ParkingSpot> spots) {
-        this.ticketId = ticketId;
-        this.vehicle = vehicle;
-        this.assignedSpots = new ArrayList<>(spots);
-        this.entryTime = System.currentTimeMillis();
-        this.paymentStatus = PaymentStatus.PENDING;
-    }
-
-    public void markExit(long exitTime, double amount) {
-        this.exitTime = exitTime;
-        this.amount = amount;
-    }
-
-    public void markPaid() {
-        this.paymentStatus = PaymentStatus.COMPLETED;
-    }
-
-    public long getDurationInMinutes() {
-        long endTime = exitTime > 0 ? exitTime : System.currentTimeMillis();
-        return (endTime - entryTime) / (1000 * 60);
-    }
-
-    // Getters
-    public String getTicketId() { return ticketId; }
-    public Vehicle getVehicle() { return vehicle; }
-    public List<ParkingSpot> getAssignedSpots() { return assignedSpots; }
-    public long getEntryTime() { return entryTime; }
-    public long getExitTime() { return exitTime; }
-    public double getAmount() { return amount; }
-    public PaymentStatus getPaymentStatus() { return paymentStatus; }
-}
-
-// ==================== PARKING STRATEGIES ====================
-
-interface ParkingStrategy {
-    List<ParkingSpot> findSpots(List<ParkingLevel> levels, Vehicle vehicle);
-}
-
-class NearestFirstStrategy implements ParkingStrategy {
-    @Override
-    public List<ParkingSpot> findSpots(List<ParkingLevel> levels, Vehicle vehicle) {
-        int spotsNeeded = vehicle.getSpotsRequired();
-
-        // Try each level sequentially
-        for (ParkingLevel level : levels) {
-            List<ParkingSpot> spots = level.findAvailableSpots(vehicle, spotsNeeded);
-            if (spots.size() == spotsNeeded) {
-                return spots;
-            }
-        }
-        return Collections.emptyList();
-    }
-}
-
-class PreferredTypeStrategy implements ParkingStrategy {
-    @Override
-    public List<ParkingSpot> findSpots(List<ParkingLevel> levels, Vehicle vehicle) {
-        int spotsNeeded = vehicle.getSpotsRequired();
-
-        // For electric vehicles, prefer EV charging spots
-        if (vehicle instanceof ElectricVehicle) {
-            for (ParkingLevel level : levels) {
-                List<ParkingSpot> evSpots = level.findEVSpots(spotsNeeded);
-                if (!evSpots.isEmpty()) {
-                    return evSpots;
-                }
-            }
-        }
-
-        // Fall back to nearest first
-        return new NearestFirstStrategy().findSpots(levels, vehicle);
-    }
-}
-
-// ==================== PRICING STRATEGY ====================
-
-interface PricingStrategy {
-    double calculateFee(Ticket ticket);
-}
-
-class HourlyPricingStrategy implements PricingStrategy {
-    private static final Map<VehicleType, Double> HOURLY_RATES = new HashMap<>();
-
-    static {
-        HOURLY_RATES.put(VehicleType.MOTORCYCLE, 5.0);
-        HOURLY_RATES.put(VehicleType.CAR, 10.0);
-        HOURLY_RATES.put(VehicleType.BUS, 20.0);
-    }
-
-    @Override
-    public double calculateFee(Ticket ticket) {
-        long durationMinutes = ticket.getDurationInMinutes();
-        double hours = Math.ceil(durationMinutes / 60.0);
-        double hourlyRate = HOURLY_RATES.getOrDefault(ticket.getVehicle().getType(), 10.0);
-        return hours * hourlyRate;
-    }
-}
-
-// ==================== PAYMENT SERVICE ====================
-
-class PaymentService {
-    public boolean processPayment(Ticket ticket, double amount) {
-        // Simulate payment processing
+    // Try to occupy spot; returns true only if successful
+    public boolean tryAssign(Vehicle v) {
+        if (!lock.tryLock()) return false;
         try {
-            Thread.sleep(100); // Simulate payment gateway delay
-            if (amount >= ticket.getAmount()) {
-                ticket.markPaid();
+            if (status == SpotStatus.AVAILABLE && canFit(v)) {
+                occupant = v;
+                status = SpotStatus.OCCUPIED;
                 return true;
             }
             return false;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
+        } finally {
+            lock.unlock();
         }
+    }
+
+    // Free spot (should be called while holding no external lock)
+    public boolean free() {
+        lock.lock();
+        try {
+            if (status == SpotStatus.OCCUPIED) {
+                occupant = null;
+                status = SpotStatus.AVAILABLE;
+                return true;
+            }
+            return false;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean canFit(Vehicle v) {
+        VehicleType vt = v.getType();
+        switch (type) {
+            case MOTORCYCLE: return vt == VehicleType.BIKE;
+            case COMPACT: return vt == VehicleType.BIKE || vt == VehicleType.CAR;
+            case LARGE: return true;
+            case EV: return vt == VehicleType.CAR; // simplified: treat EV as car-type
+            default: return false;
+        }
+    }
+
+    public String getId() { return id; }
+    public SpotType getType() { return type; }
+    public SpotStatus getStatus() { return status; }
+    public String toString() { return id + "(" + type + ":" + status + ")"; }
+}
+
+// --- Ticket ---
+class Ticket {
+    private final String id;
+    private final Vehicle vehicle;
+    private final ParkingSpot spot;
+    private final long entryTs;
+    private long exitTs;
+    private volatile boolean paid;
+
+    public Ticket(String id, Vehicle v, ParkingSpot s) {
+        this.id = id; this.vehicle = v; this.spot = s; this.entryTs = System.currentTimeMillis();
+    }
+
+    public void markExit() { exitTs = System.currentTimeMillis(); }
+    public long getDurationMinutes() {
+        long end = (exitTs == 0) ? System.currentTimeMillis() : exitTs;
+        return (end - entryTs) / 60000;
+    }
+    public void markPaid() { paid = true; }
+    public boolean isPaid() { return paid; }
+    public String getId() { return id; }
+    public Vehicle getVehicle() { return vehicle; }
+    public ParkingSpot getSpot() { return spot; }
+}
+
+// --- Simple Pricing ---
+class Pricing {
+    public static double fee(Ticket t) {
+        long mins = Math.max(1, t.getDurationMinutes()); // at least 1 minute
+        double ratePerHour;
+        switch (t.getVehicle().getType()) {
+            case BIKE: ratePerHour = 5; break;
+            case CAR: ratePerHour = 10; break;
+            case TRUCK: ratePerHour = 20; break;
+            default: ratePerHour = 10;
+        }
+        double hours = Math.ceil(mins / 60.0);
+        return hours * ratePerHour;
     }
 }
 
-// ==================== PARKING LEVEL ====================
+// --- Payment service (simulated) ---
+class PaymentService {
+    public boolean process(PaymentMethod method, Ticket ticket, double amount) {
+        // Simulate latency
+        try { Thread.sleep(30); } catch (InterruptedException ignored) {}
+        // Simple success simulation: always succeed
+        ticket.markPaid();
+        return true;
+    }
+}
 
+// --- Parking Level: holds queues of available spots by type ---
 class ParkingLevel {
-    private final int levelNumber;
-    private final List<ParkingSpot> spots;
-    private final Map<SpotType, List<ParkingSpot>> spotsByType;
-    private final AtomicInteger availableSpots;
+    private final int levelNo;
+    private final Map<SpotType, ConcurrentLinkedQueue<ParkingSpot>> availableByType = new EnumMap<>(SpotType.class);
+    private final List<ParkingSpot> allSpots = new ArrayList<>();
 
-    public ParkingLevel(int levelNumber) {
-        this.levelNumber = levelNumber;
-        this.spots = new CopyOnWriteArrayList<>();
-        this.spotsByType = new ConcurrentHashMap<>();
-        this.availableSpots = new AtomicInteger(0);
-
-        // Initialize spot type map
-        for (SpotType type : SpotType.values()) {
-            spotsByType.put(type, new CopyOnWriteArrayList<>());
-        }
+    public ParkingLevel(int levelNo) {
+        this.levelNo = levelNo;
+        for (SpotType st : SpotType.values()) availableByType.put(st, new ConcurrentLinkedQueue<>());
     }
 
-    public void addSpot(ParkingSpot spot) {
-        spots.add(spot);
-        spotsByType.get(spot.getType()).add(spot);
-        availableSpots.incrementAndGet();
+    public void addSpot(ParkingSpot s) {
+        allSpots.add(s);
+        availableByType.get(s.getType()).offer(s);
     }
 
-    public synchronized List<ParkingSpot> findAvailableSpots(Vehicle vehicle, int count) {
-        List<ParkingSpot> availableSpots = new ArrayList<>();
-
-        // First try to find exact type match
-        for (ParkingSpot spot : spots) {
-            if (spot.isAvailable() && spot.canFitVehicle(vehicle)) {
-                availableSpots.add(spot);
-                if (availableSpots.size() == count) {
-                    return availableSpots;
+    // Find and reserve a spot for vehicle (returns spot or null)
+    public ParkingSpot reserveSpotFor(Vehicle v) {
+        // Preferred order: exact fit then larger types
+        List<SpotType> preferred = spotPreferenceFor(v.getType());
+        for (SpotType st : preferred) {
+            ConcurrentLinkedQueue<ParkingSpot> q = availableByType.get(st);
+            ParkingSpot sp;
+            while ((sp = q.poll()) != null) {
+                // try to assign; if fails, somebody else took it — continue
+                if (sp.tryAssign(v)) {
+                    return sp;
+                } else {
+                    // assignment failed -> continue (spot might be occupied by concurrent thread)
+                    continue;
                 }
             }
         }
-
-        // If we found some but not enough, return empty
-        return availableSpots.size() == count ? availableSpots : Collections.emptyList();
+        return null;
     }
 
-    public synchronized List<ParkingSpot> findEVSpots(int count) {
-        List<ParkingSpot> evSpots = new ArrayList<>();
-        List<ParkingSpot> evChargingSpots = spotsByType.get(SpotType.EV_CHARGING);
-
-        for (ParkingSpot spot : evChargingSpots) {
-            if (spot.isAvailable()) {
-                evSpots.add(spot);
-                if (evSpots.size() == count) {
-                    return evSpots;
-                }
-            }
+    // Return a spot to availability (after free)
+    public void returnSpot(ParkingSpot s) {
+        if (s.getStatus() == SpotStatus.AVAILABLE) {
+            availableByType.get(s.getType()).offer(s);
         }
-        return evSpots.size() == count ? evSpots : Collections.emptyList();
     }
 
-    public int getAvailableSpotCount() {
-        return (int) spots.stream().filter(ParkingSpot::isAvailable).count();
+    private List<SpotType> spotPreferenceFor(VehicleType vt) {
+        switch (vt) {
+            case BIKE: return Arrays.asList(SpotType.MOTORCYCLE, SpotType.COMPACT, SpotType.LARGE);
+            case CAR: return Arrays.asList(SpotType.COMPACT, SpotType.LARGE, SpotType.EV);
+            case TRUCK: return Arrays.asList(SpotType.LARGE);
+            default: return Arrays.asList(SpotType.COMPACT, SpotType.LARGE);
+        }
     }
 
-    public int getLevelNumber() {
-        return levelNumber;
+    public int levelNumber() { return levelNo; }
+    public int availableCount() {
+        return allSpots.stream().mapToInt(s -> s.getStatus() == SpotStatus.AVAILABLE ? 1 : 0).sum();
     }
 }
 
-// ==================== PARKING LOT (SINGLETON) ====================
-
+// --- ParkingLot (singleton, thread-safe) ---
 class ParkingLot {
-    private static ParkingLot instance;
-    private final List<ParkingLevel> levels;
-    private final Map<String, Ticket> activeTickets;
-    private final ParkingStrategy parkingStrategy;
-    private final PricingStrategy pricingStrategy;
-    private final PaymentService paymentService;
-    private final AtomicInteger ticketCounter;
+    private static final ParkingLot INSTANCE = new ParkingLot();
+    private final List<ParkingLevel> levels = new CopyOnWriteArrayList<>();
+    private final ConcurrentHashMap<String, Ticket> activeTickets = new ConcurrentHashMap<>();
+    private final AtomicInteger ticketCounter = new AtomicInteger(0);
+    private final PaymentService paymentService = new PaymentService();
 
-    private ParkingLot() {
-        this.levels = new CopyOnWriteArrayList<>();
-        this.activeTickets = new ConcurrentHashMap<>();
-        this.parkingStrategy = new PreferredTypeStrategy();
-        this.pricingStrategy = new HourlyPricingStrategy();
-        this.paymentService = new PaymentService();
-        this.ticketCounter = new AtomicInteger(0);
-    }
+    private ParkingLot() {}
 
-    public static synchronized ParkingLot getInstance() {
-        if (instance == null) {
-            instance = new ParkingLot();
-        }
-        return instance;
-    }
+    public static ParkingLot get() { return INSTANCE; }
 
-    public void addLevel(ParkingLevel level) {
-        levels.add(level);
-    }
+    public void addLevel(ParkingLevel l) { levels.add(l); }
 
-    public synchronized Ticket parkVehicle(Vehicle vehicle) {
-        // Find available spots
-        List<ParkingSpot> spots = parkingStrategy.findSpots(levels, vehicle);
-
-        if (spots.isEmpty()) {
-            System.out.println("No available spots for vehicle: " + vehicle.getLicensePlate());
-            return null;
-        }
-
-        // Assign vehicle to spots
-        for (ParkingSpot spot : spots) {
-            if (!spot.assignVehicle(vehicle)) {
-                // Rollback if assignment fails
-                spots.forEach(ParkingSpot::removeVehicle);
-                return null;
+    // Park vehicle: iterate levels, attempt to reserve spot
+    public Ticket park(Vehicle v) {
+        for (ParkingLevel lvl : levels) {
+            ParkingSpot sp = lvl.reserveSpotFor(v);
+            if (sp != null) {
+                String tid = "T-" + ticketCounter.incrementAndGet();
+                Ticket ticket = new Ticket(tid, v, sp);
+                activeTickets.put(tid, ticket);
+                System.out.println("Parked " + v.getPlate() + " at " + sp.getId() + " (ticket=" + tid + ")");
+                return ticket;
             }
         }
-
-        // Generate ticket
-        String ticketId = "TICKET-" + ticketCounter.incrementAndGet();
-        Ticket ticket = new Ticket(ticketId, vehicle, spots);
-        activeTickets.put(ticketId, ticket);
-
-        System.out.println("Vehicle " + vehicle.getLicensePlate() + " parked. Ticket: " + ticketId);
-        return ticket;
+        System.out.println("No spot available for " + v.getPlate());
+        return null;
     }
 
-    public synchronized boolean unparkVehicle(String ticketId) {
-        Ticket ticket = activeTickets.get(ticketId);
-
-        if (ticket == null) {
-            System.out.println("Invalid ticket ID: " + ticketId);
+    // Unpark: requires payment before freeing
+    public boolean unpark(String ticketId, PaymentMethod method) {
+        Ticket t = activeTickets.get(ticketId);
+        if (t == null) {
+            System.out.println("Invalid ticket: " + ticketId);
             return false;
         }
-
-        // Calculate fee
-        long exitTime = System.currentTimeMillis();
-        double fee = pricingStrategy.calculateFee(ticket);
-        ticket.markExit(exitTime, fee);
-
-        System.out.println("Fee for ticket " + ticketId + ": $" + fee);
-        System.out.println("Duration: " + ticket.getDurationInMinutes() + " minutes");
-
-        // Process payment
-        if (paymentService.processPayment(ticket, fee)) {
-            // Release spots
-            for (ParkingSpot spot : ticket.getAssignedSpots()) {
-                spot.removeVehicle();
-            }
-
-            activeTickets.remove(ticketId);
-            System.out.println("Vehicle " + ticket.getVehicle().getLicensePlate() + " exited successfully");
-            return true;
+        t.markExit();
+        double fee = Pricing.fee(t);
+        boolean paid = paymentService.process(method, t, fee);
+        if (!paid) {
+            System.out.println("Payment failed for " + ticketId);
+            return false;
         }
-
-        System.out.println("Payment failed for ticket: " + ticketId);
-        return false;
+        // free spot and return to its level's queue
+        ParkingSpot spot = t.getSpot();
+        boolean freed = spot.free();
+        // find the level containing this spot and return it to availability
+        for (ParkingLevel lvl : levels) {
+            // micro-optimization avoided: simply return to all levels; harmless because returnSpot will push it back
+            lvl.returnSpot(spot);
+        }
+        activeTickets.remove(ticketId);
+        System.out.println("Unparked ticket=" + ticketId + ", fee=" + fee);
+        return true;
     }
 
-    public void displayAvailability() {
-        System.out.println("\n=== Parking Lot Status ===");
-        for (ParkingLevel level : levels) {
-            System.out.println("Level " + level.getLevelNumber() +
-                    ": " + level.getAvailableSpotCount() + " spots available");
-        }
-        System.out.println("Active tickets: " + activeTickets.size());
-    }
-
-    public int getTotalAvailableSpots() {
-        return levels.stream()
-                .mapToInt(ParkingLevel::getAvailableSpotCount)
-                .sum();
+    public int totalAvailable() {
+        return levels.stream().mapToInt(ParkingLevel::availableCount).sum();
     }
 }
 
-// ==================== DEMO/TEST ====================
-
+// --- Demo with concurrent parking ---
 public class ParkingLotDemo {
     public static void main(String[] args) throws InterruptedException {
-        // Initialize parking lot
-        ParkingLot parkingLot = ParkingLot.getInstance();
+        ParkingLot lot = ParkingLot.get();
 
-        // Create 3 levels with different spot configurations
-        for (int i = 0; i < 3; i++) {
-            ParkingLevel level = new ParkingLevel(i);
+        // build 2 levels
+        ParkingLevel l0 = new ParkingLevel(0);
+        for (int i = 0; i < 5; i++) l0.addSpot(new ParkingSpot("L0-M-" + i, SpotType.MOTORCYCLE));
+        for (int i = 0; i < 5; i++) l0.addSpot(new ParkingSpot("L0-C-" + i, SpotType.COMPACT));
+        for (int i = 0; i < 2; i++) l0.addSpot(new ParkingSpot("L0-L-" + i, SpotType.LARGE));
+        lot.addLevel(l0);
 
-            // Add motorcycle spots
-            for (int j = 0; j < 10; j++) {
-                level.addSpot(new MotorcycleSpot("L" + i + "-M" + j, i));
-            }
+        ParkingLevel l1 = new ParkingLevel(1);
+        for (int i = 0; i < 3; i++) l1.addSpot(new ParkingSpot("L1-C-" + i, SpotType.COMPACT));
+        for (int i = 0; i < 2; i++) l1.addSpot(new ParkingSpot("L1-L-" + i, SpotType.LARGE));
+        lot.addLevel(l1);
 
-            // Add compact spots
-            for (int j = 0; j < 20; j++) {
-                level.addSpot(new CompactSpot("L" + i + "-C" + j, i));
-            }
-
-            // Add large spots
-            for (int j = 0; j < 15; j++) {
-                level.addSpot(new LargeSpot("L" + i + "-L" + j, i));
-            }
-
-            // Add EV charging spots
-            for (int j = 0; j < 5; j++) {
-                level.addSpot(new EVChargingSpot("L" + i + "-EV" + j, i));
-            }
-
-            parkingLot.addLevel(level);
+        // concurrent parking
+        ExecutorService ex = Executors.newFixedThreadPool(8);
+        List<Future<Ticket>> futures = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final int idx = i;
+            futures.add(ex.submit(() -> {
+                Vehicle v = (idx % 3 == 0) ? new Bike("B-" + idx)
+                        : (idx % 3 == 1) ? new Car("C-" + idx) : new Truck("T-" + idx);
+                return lot.park(v);
+            }));
         }
 
-        parkingLot.displayAvailability();
-
-        // Test vehicle parking
-        Vehicle car1 = new Car("ABC-123");
-        Vehicle motorcycle1 = new Motorcycle("XYZ-789");
-        Vehicle bus1 = new Bus("BUS-456");
-        Vehicle ev1 = new ElectricVehicle("EV-001", 30);
-
-        Ticket ticket1 = parkingLot.parkVehicle(car1);
-        Ticket ticket2 = parkingLot.parkVehicle(motorcycle1);
-        Ticket ticket3 = parkingLot.parkVehicle(bus1);
-        Ticket ticket4 = parkingLot.parkVehicle(ev1);
-
-        parkingLot.displayAvailability();
-
-        // Simulate some time passing
-        Thread.sleep(2000);
-
-        // Unpark vehicles
-        if (ticket1 != null) {
-            parkingLot.unparkVehicle(ticket1.getTicketId());
+        List<Ticket> tickets = new ArrayList<>();
+        for (Future<Ticket> f : futures) {
+            try { Ticket t = f.get(); if (t != null) tickets.add(t); } catch (Exception ignored) {}
         }
 
-        if (ticket2 != null) {
-            parkingLot.unparkVehicle(ticket2.getTicketId());
+        System.out.println("Available after park: " + lot.totalAvailable());
+
+        // unpark half
+        for (int i = 0; i < tickets.size() / 2; i++) {
+            Ticket t = tickets.get(i);
+            lot.unpark(t.getId(), PaymentMethod.UPI);
         }
 
-        parkingLot.displayAvailability();
-
-        // Test concurrent parking
-        System.out.println("\n=== Testing Concurrent Operations ===");
-        testConcurrentParking(parkingLot);
-    }
-
-    private static void testConcurrentParking(ParkingLot parkingLot) throws InterruptedException {
-        int threadCount = 10;
-        CountDownLatch latch = new CountDownLatch(threadCount);
-
-        for (int i = 0; i < threadCount; i++) {
-            final int index = i;
-            new Thread(() -> {
-                Vehicle vehicle = new Car("CONCURRENT-" + index);
-                Ticket ticket = parkingLot.parkVehicle(vehicle);
-                if (ticket != null) {
-                    System.out.println("Thread " + index + " parked successfully");
-                }
-                latch.countDown();
-            }).start();
-        }
-
-        latch.await();
-        parkingLot.displayAvailability();
+        System.out.println("Available after some exit: " + lot.totalAvailable());
+        ex.shutdown();
     }
 }

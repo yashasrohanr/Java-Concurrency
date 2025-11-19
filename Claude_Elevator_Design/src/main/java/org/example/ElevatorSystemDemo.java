@@ -500,7 +500,7 @@ class NearestCarStrategy implements SchedulingStrategy {
                 .filter(e -> e.getState() != ElevatorState.MAINTENANCE)
                 .min(Comparator.comparingInt(e ->
                         Math.abs(e.getCurrentFloor() - request.getSourceFloor())))
-                .orElse(elevators.get(0));
+                .orElse(elevators.getFirst());
     }
 }
 

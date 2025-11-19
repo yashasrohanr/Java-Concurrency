@@ -78,7 +78,7 @@ class Warehouse {
     private final String name;
     private final String location;
     private final ConcurrentHashMap<String, InventoryItem> inventory;
-    private final ReadWriteLock lock;
+    private final ReentrantReadWriteLock lock;
     private final List<InventoryObserver> observers;
 
     public Warehouse(String warehouseId, String name, String location) {
@@ -109,7 +109,6 @@ class Warehouse {
                 inventory.put(productId, item);
                 System.out.println(String.format("[%s] Added new product: %s with quantity: %d",
                         name, product.getName(), quantity));
-                return true;
             } else {
                 int newQuantity = item.getQuantity() + quantity;
                 if (newQuantity > item.getMaxCapacity()) {
@@ -120,8 +119,8 @@ class Warehouse {
                 item.setQuantity(newQuantity);
                 System.out.println(String.format("[%s] Updated %s quantity to: %d",
                         name, product.getName(), newQuantity));
-                return true;
             }
+            return true;
         } finally {
             lock.writeLock().unlock();
         }

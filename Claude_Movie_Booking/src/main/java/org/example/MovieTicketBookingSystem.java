@@ -280,7 +280,7 @@ class BookingService {
             List<String> expiredSessions = activeSessions.entrySet().stream()
                     .filter(e -> e.getValue().isExpired())
                     .map(Map.Entry::getKey)
-                    .collect(Collectors.toList());
+                    .toList();
 
             for (String sessionId : expiredSessions) {
                 cancelSession(sessionId);
