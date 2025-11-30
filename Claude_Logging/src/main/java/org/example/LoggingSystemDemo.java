@@ -9,8 +9,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.*;
 import java.util.regex.Pattern;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 // ============= Core Enums and Data Structures =============
 
@@ -32,14 +30,12 @@ class LogEntry {
     private final String message;
     private final LogLevel level;
     private final long timestamp;
-    private final Map<String, Object> context;
     private final String threadName;
 
-    public LogEntry(String message, LogLevel level, Map<String, Object> context) {
+    public LogEntry(String message, LogLevel level) {
         this.message = message;
         this.level = level;
         this.timestamp = System.currentTimeMillis();
-        this.context = new ConcurrentHashMap<>(context != null ? context : new HashMap<>());
         this.threadName = Thread.currentThread().getName();
     }
 
@@ -47,7 +43,6 @@ class LogEntry {
     public String getMessage() { return message; }
     public LogLevel getLevel() { return level; }
     public long getTimestamp() { return timestamp; }
-    public Map<String, Object> getContext() { return new HashMap<>(context); }
     public String getThreadName() { return threadName; }
 }
 
@@ -86,9 +81,6 @@ class DetailedFormatter implements LogFormatter {
         sb.append("[").append(entry.getThreadName()).append("] ");
         sb.append(entry.getMessage());
 
-        if (!entry.getContext().isEmpty()) {
-            sb.append(" | Context: ").append(entry.getContext());
-        }
 
         return sb.toString();
     }
@@ -97,28 +89,6 @@ class DetailedFormatter implements LogFormatter {
         return LocalDateTime.now().format(formatter);
     }
 }
-
-class JSONFormatter implements LogFormatter {
-    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    @Override
-    public String format(LogEntry entry) {
-        Map<String, Object> logMap = new LinkedHashMap<>();
-        logMap.put("timestamp", formatTimestamp(entry.getTimestamp()));
-        logMap.put("level", entry.getLevel().name());
-        logMap.put("thread", entry.getThreadName());
-        logMap.put("message", entry.getMessage());
-        logMap.put("context", entry.getContext());
-
-        return gson.toJson(logMap);
-    }
-
-    private String formatTimestamp(long timestamp) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-        return LocalDateTime.now().format(formatter);
-    }
-}
-
 // ============= Filters =============
 
 interface LogFilter {
@@ -135,19 +105,6 @@ class LevelFilter implements LogFilter {
     @Override
     public boolean filter(LogEntry entry) {
         return entry.getLevel().getValue() >= minLevel.getValue();
-    }
-}
-
-class RegexFilter implements LogFilter {
-    private final Pattern pattern;
-
-    public RegexFilter(String regex) {
-        this.pattern = Pattern.compile(regex);
-    }
-
-    @Override
-    public boolean filter(LogEntry entry) {
-        return pattern.matcher(entry.getMessage()).find();
     }
 }
 
@@ -360,8 +317,6 @@ class Logger {
     private static final Logger instance = new Logger();
     private LoggerConfig config = new LoggerConfig();
     private final ReentrantReadWriteLock configLock = new ReentrantReadWriteLock();
-    private final ThreadLocal<Map<String, Object>> contextStack =
-            ThreadLocal.withInitial(ConcurrentHashMap::new);
 
     private Logger() {}
 
@@ -405,8 +360,7 @@ class Logger {
                 return;
             }
 
-            Map<String, Object> context = new HashMap<>(contextStack.get());
-            LogEntry entry = new LogEntry(message, level, context);
+            LogEntry entry = new LogEntry(message, level);
 
             for (LogHandler handler : config.getHandlers()) {
                 handler.handle(entry);
@@ -414,15 +368,6 @@ class Logger {
         } finally {
             configLock.readLock().unlock();
         }
-    }
-
-    public Logger withContext(Map<String, Object> contextData) {
-        contextStack.get().putAll(contextData);
-        return this;
-    }
-
-    public void clearContext() {
-        contextStack.remove();
     }
 }
 
@@ -436,7 +381,7 @@ public class LoggingSystemDemo {
 
         // Setup Handlers
         ConsoleHandler consoleHandler = new ConsoleHandler(LogLevel.DEBUG, new DetailedFormatter());
-        FileHandler fileHandler = new FileHandler(LogLevel.INFO, new JSONFormatter(), "logs.json");
+        FileHandler fileHandler = new FileHandler(LogLevel.INFO, new SimpleFormatter(), "logs.json");
         NetworkHandler networkHandler = new NetworkHandler(LogLevel.WARNING, new SimpleFormatter(),
                 "logging-server.com", 8080);
 
@@ -455,13 +400,11 @@ public class LoggingSystemDemo {
 
         // Demonstrate logging from multiple threads
         Thread t1 = new Thread(() -> {
-            logger.withContext(Map.of("userId", "user123", "requestId", "req001"));
             logger.info("User logged in");
             logger.debug("Debug information");
         });
 
         Thread t2 = new Thread(() -> {
-            logger.withContext(Map.of("userId", "user456", "requestId", "req002"));
             logger.warning("High memory usage detected");
             logger.error("Database connection failed");
         });

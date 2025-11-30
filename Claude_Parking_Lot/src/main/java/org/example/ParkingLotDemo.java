@@ -68,13 +68,13 @@ class ParkingSpot {
 
     public boolean canFit(Vehicle v) {
         VehicleType vt = v.getType();
-        switch (type) {
-            case MOTORCYCLE: return vt == VehicleType.BIKE;
-            case COMPACT: return vt == VehicleType.BIKE || vt == VehicleType.CAR;
-            case LARGE: return true;
-            case EV: return vt == VehicleType.CAR; // simplified: treat EV as car-type
-            default: return false;
-        }
+        return switch (type) {
+            case MOTORCYCLE -> vt == VehicleType.BIKE;
+            case COMPACT -> vt == VehicleType.BIKE || vt == VehicleType.CAR;
+            case LARGE -> true;
+            case EV -> vt == VehicleType.CAR; // simplified: treat EV as car-type
+            default -> false;
+        };
     }
 
     public String getId() { return id; }
@@ -128,7 +128,7 @@ class Pricing {
 class PaymentService {
     public boolean process(PaymentMethod method, Ticket ticket, double amount) {
         // Simulate latency
-        try { Thread.sleep(30); } catch (InterruptedException ignored) {}
+        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
         // Simple success simulation: always succeed
         ticket.markPaid();
         return true;
@@ -162,9 +162,6 @@ class ParkingLevel {
                 // try to assign; if fails, somebody else took it — continue
                 if (sp.tryAssign(v)) {
                     return sp;
-                } else {
-                    // assignment failed -> continue (spot might be occupied by concurrent thread)
-                    continue;
                 }
             }
         }
