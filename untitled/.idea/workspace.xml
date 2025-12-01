@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="05804821-af5e-418f-b90c-183e9625bfc9" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../Claude_Movie_Booking/src/main/java/org/example/MovieBookingMini.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Claude_Kafka" beforeDir="false" afterPath="$PROJECT_DIR$/../Claude_Kafka" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Claude_Logging/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../Claude_Logging/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Claude_Logging/src/main/java/org/example/LoggingSystemDemo.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Claude_Logging/src/main/java/org/example/LoggingSystemDemo.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Claude_Movie_Booking/src/main/java/org/example/MovieTicketBookingSystem.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Claude_Parking_Lot/src/main/java/org/example/ParkingLotDemo.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Claude_Parking_Lot/src/main/java/org/example/ParkingLotDemo.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;yashasrohanr&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/yashasrohanr/Java-Concurrency.git&quot;,
+    &quot;accountId&quot;: &quot;a7502900-d289-4d4d-9dff-daa222741cdf&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="364Dq1IiHdhADMGG5UaX0WJV5TP" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.SplitwiseLLD.executor": "Run",
+    "RunOnceActivity.ChatTagsLlmMigration": "true",
+    "RunOnceActivity.CodyAccountHistoryMigration": "true",
+    "RunOnceActivity.CodyAccountsIdsRefresh": "true",
+    "RunOnceActivity.CodyAssignOrphanedChatsToActiveAccount": "true",
+    "RunOnceActivity.CodyConvertUrlToCodebaseName": "true",
+    "RunOnceActivity.CodyHistoryLlmMigration": "true",
+    "RunOnceActivity.CodyMigrateChatHistory-v2": "true",
+    "RunOnceActivity.CodyProjectSettingsMigration": "true",
+    "RunOnceActivity.DeprecatedChatLlmMigration": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.ToggleCodyToolWindowAfterMigration": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/rohan/Job Applications/Java concurrency/Splitwise"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="Splitwise" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="Splitwise" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="05804821-af5e-418f-b90c-183e9625bfc9" name="Changes" comment="" />
+      <created>1764257138520</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1764257138520</updated>
+    </task>
+    <servers />
+  </component>
+</project>
